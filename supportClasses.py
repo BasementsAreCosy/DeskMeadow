@@ -32,10 +32,11 @@ class Sprite:
     def draw(self, painter):
         if self.image != None:
             painter.drawPixmap(self.x, self.y, self.image)
-        elif self.shape.name == 'ellipse':
-            painter.drawEllipse(self.x, self.y, self.shape.width, self.shape.height)
-        elif self.shape.name == 'rectangle':
-            painter.drawRect(self.x, self.y, self.shape.width, self.shape.height)
+        elif self.shape != None:
+            if self.shape.name == 'ellipse':
+                painter.drawEllipse(self.x, self.y, self.shape.width, self.shape.height)
+            elif self.shape.name == 'rectangle':
+                painter.drawRect(self.x, self.y, self.shape.width, self.shape.height)
     
     def move(self, pos):
         self.realPos = pos

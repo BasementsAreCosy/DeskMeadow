@@ -5,14 +5,14 @@ import supportClasses
 ##### Window Libs #####
 from PyQt5.QtWidgets import QApplication, QMainWindow
 from PyQt5.QtCore import Qt, QTimer, QPoint
-from PyQt5.QtGui import QPainter, QBrush, QImage, QColor
+from PyQt5.QtGui import QPainter, QPen, QBrush, QImage, QColor
 import win32gui
 import win32con
 import win32api
 import sys
 
 ##### Logic Libs #####
-import numpy as np
+import math
 import random
 
 
@@ -75,16 +75,18 @@ class Window(QMainWindow):
             if self.frame%max(1, self.FPS//sprite.updatesPerSecond) == 0:
                 sprite.update()
                 if sprite.dead:
-                    self.sprites.append(Flower())
+                    self.sprites.append(Flower(self, (sprite.position[0], 1130)))
                     self.sprites.remove(sprite)
             
         self.update()
     
     def paintEvent(self, event):
         painter = QPainter(self)
+        pen = QPen(Qt.green)
         brush = QBrush(QColor(Qt.green))
+        painter.setPen(pen)
         painter.setBrush(brush)
-
+        
         for sprite in self.sprites:
             for child in sprite.children: # todo: intro layers for foreground/background objs
                 child.draw(painter)
@@ -142,7 +144,7 @@ class SeedBag(supportClasses.Sprite):
         self.secondsSinceLastSeed = 100
     
     def onHold(self, oldPos, newPos):
-        if (abs(oldPos[0]-newPos[0]) > 10 or abs(oldPos[1]-newPos[1]) > 2) and self.secondsSinceLastSeed > 0.5:
+        if abs(oldPos[1]-newPos[1]) > 2 and self.secondsSinceLastSeed > 0:
             self.secondsSinceLastSeed = 0
             self.window.sprites.append(Seed(self.window, self.position))
 
@@ -161,13 +163,37 @@ class Seed(supportClasses.Sprite):
         self.realPos = (self.realPos[0]+(self.velocity[0]/self.updatesPerSecond), self.realPos[1]+(self.velocity[1]/self.updatesPerSecond))
         if self.x < 0 or self.x > win32api.GetSystemMetrics(0):
             self.velocity = (-self.velocity[0], self.velocity[1])
-    
+
     @property
     def dead(self):
         return self.y > win32api.GetSystemMetrics(1)
 
 class Flower(supportClasses.Sprite):
-    pass
+    def __init__(self, window, pos):
+        super().__init__(window, pos)
+
+        self.age = 0
+        self.growthMultiplier = (random.random()+1)*5
+
+        self.nodes = 3#random.randint(1, 3)
+        self.stage = self.nodes
+        self.nodeLength = 0
+        self.lengths = [random.uniform(10, 50)]
+        self.angles = [0]
+        self.points = [self.position]
+        for i in range(self.nodes):
+            self.angles.append(random.uniform(math.pi/6, 2*math.pi/3))
+            self.points.append((self.points[-1][0]+self.lengths[-1]*math.cos(self.angles[-1]), self.points[-1][1]-self.lengths[-1]*math.sin(self.angles[-1])))
+            self.lengths.append(random.uniform(10, 50))
+
+    def update(self):
+        self.age += 1/self.updatesPerSecond
+        self.nodeLength += self.growthMultiplier/self.updatesPerSecond
+    
+    def draw(self, painter):
+        for i in range(self.stage):
+            painter.drawLine(round(self.points[i][0]), round(self.points[i][1]), round(self.points[i+1][0]), round(self.points[i+1][1]))
+    
 
 
 def main():
