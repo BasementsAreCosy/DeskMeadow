@@ -1,0 +1,8 @@
+# GUI Library
+PyQt5
+
+# Windows API Bindings
+pywin32
+
+# Logic Libraries
+numpy
