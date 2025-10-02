@@ -25,6 +25,8 @@ class Window(QMainWindow):
         self.initUI()
 
         self.sprites = []
+        for i in range(10):
+            self.sprites.append([])
         self.load()
 
         self.mousePressed = False
@@ -44,7 +46,7 @@ class Window(QMainWindow):
     def initUI(self):
         self.setWindowFlags(
             Qt.FramelessWindowHint |
-            Qt.WindowStaysOnTopHint | # todo: change to bottom after development
+            Qt.WindowStaysOnBottomHint | # todo: change to bottom after development
             Qt.Tool
         )
         self.setAttribute(Qt.WA_TranslucentBackground)
@@ -57,6 +59,10 @@ class Window(QMainWindow):
             win32gui.GetWindowLong(hwnd, win32con.GWL_EXSTYLE) | win32con.WS_EX_LAYERED # | win32con.WS_EX_TRANSPARENT
         )
         
+        taskbarHandle = win32gui.FindWindow('Shell_TrayWnd', None)
+        rect = win32gui.GetWindowRect(taskbarHandle)
+        self.screenBottom = rect[1]
+
         # Set window size to be full screen
         self.setGeometry(0, 0, win32api.GetSystemMetrics(0), win32api.GetSystemMetrics(1))
         self.show()
@@ -66,30 +72,32 @@ class Window(QMainWindow):
 
     def save(self):
         flowerDict = []
-        for sprite in self.sprites:
-            if isinstance(sprite, Flower):
-                flowerDict.append({
-                    'spriteid': sprite.id,
-                    'timeBorn': sprite.timeBorn,
-                    'colour': sprite.colour,
-                    'petalWidth': sprite.petalWidth,
-                    'petalSize': sprite.petalSize,
-                    'petalOffset': sprite.petalOffset,
-                    'numPetals': sprite.numPetals,
-                    'centreColour': sprite.centreColour,
-                    'lengths': sprite.lengths,
-                    'angles': sprite.angles,
-                    'nodes': sprite.nodes,
-                    'nodeLength': sprite.nodeLength,
-                    'stalkThickness': sprite.stalkThickness,
-                    'stage': sprite.stage,
-                    'pos': sprite.position,
-                    'points': sprite.points,
-                    'leafAngles': sprite.leafAngles,
-                    'growthMultiplier': sprite.growthMultiplier
-                })
-            elif isinstance(sprite, SeedBag):
-                seedBag = sprite
+        for layer in self.sprites:
+            for sprite in layer:
+                if isinstance(sprite, Flower):
+                    flowerDict.append({
+                        'spriteid': sprite.id,
+                        'water': sprite.water,
+                        'colour': sprite.colour,
+                        'petalOutline': sprite.petalOutline,
+                        'petalWidth': sprite.petalWidth,
+                        'petalSize': sprite.petalSize,
+                        'petalOffset': sprite.petalOffset,
+                        'numPetals': sprite.numPetals,
+                        'centreColour': sprite.centreColour,
+                        'lengths': sprite.lengths,
+                        'angles': sprite.angles,
+                        'nodes': sprite.nodes,
+                        'nodeLength': sprite.nodeLength,
+                        'stalkThickness': sprite.stalkThickness,
+                        'stage': sprite.stage,
+                        'pos': sprite.position,
+                        'points': sprite.points,
+                        'leafAngles': sprite.leafAngles,
+                        'growthMultiplier': sprite.growthMultiplier
+                    })
+                elif isinstance(sprite, SeedBag):
+                    seedBag = sprite
         flowerDict.append({
             'timeAtLastSave': time.time(),
             'seedCount': seedBag.seedCount
@@ -118,28 +126,31 @@ class Window(QMainWindow):
         
         for flower in flowerData:
             flower['window'] = self
-            self.sprites.append(Flower(**flower))
-            self.sprites[-1].catchup(timeSinceSave)
+            self.sprites[8].append(Flower(**flower))
+            self.sprites[8][-1].catchup(timeSinceSave)
         
         if metaData is None:
-            self.sprites.append(SeedBag(window=self, pos=(500, 500)))
+            self.sprites[9].append(SeedBag(window=self, pos=(win32api.GetSystemMetrics(0)/3, -100)))
         else:
-            self.sprites.append(SeedBag(window=self, pos=(500, 500), seedCount=metaData['seedCount']+timeSinceSave//17280, secondsSinceRefill=timeSinceSave%17280))
-    
+            self.sprites[9].append(SeedBag(window=self, pos=(win32api.GetSystemMetrics(0)/3, -100), seedCount=metaData['seedCount']+timeSinceSave//17280, secondsSinceRefill=timeSinceSave%17280))
+
+        self.sprites[9].append(WateringCan(window=self, pos=(2*win32api.GetSystemMetrics(0)/3, -100)))
+
     def updateScr(self):
         self.frame += 1
-        for sprite in self.sprites:
-            for child in sprite.children:
-                if self.frame%max(1, self.FPS//child.updatesPerSecond) == 0:
-                    child.update()
-            if self.frame%max(1, self.FPS//sprite.updatesPerSecond) == 0:
-                sprite.update()
-                if sprite.dead:
-                    if isinstance(sprite, Seed):
-                        taskbar_handle = win32gui.FindWindow("Shell_TrayWnd", None)
-                        rect = win32gui.GetWindowRect(taskbar_handle)
-                        self.sprites.append(Flower(window=self, pos=(sprite.position[0], rect[1])))
-                    self.sprites.remove(sprite)
+        for layer in self.sprites:
+            for sprite in layer:
+                for child in sprite.children:
+                    if self.frame%max(1, self.FPS//child.updatesPerSecond) == 0:
+                        child.update()
+                        if child.dead:
+                            sprite.children.remove(child)
+                if self.frame%max(1, self.FPS//sprite.updatesPerSecond) == 0:
+                    sprite.update()
+                    if sprite.dead:
+                        if isinstance(sprite, Seed):
+                            self.sprites[8].append(Flower(window=self, pos=(sprite.position[0], self.screenBottom)))
+                        layer.remove(sprite)
             
         self.update()
     
@@ -151,32 +162,34 @@ class Window(QMainWindow):
         painter.setPen(pen)
         painter.setBrush(brush)
         
-        for sprite in self.sprites:
-            for child in sprite.children: # todo: intro layers for foreground/background objs
-                child.draw(painter)
-            sprite.draw(painter)
+        for layer in self.sprites:
+            for sprite in layer:
+                for child in sprite.children: # todo: intro layers for foreground/background objs
+                    child.draw(painter)
+                sprite.draw(painter)
     
     def mousePressEvent(self, event):
         self.mousePressed = True
     
     def mouseMoveEvent(self, event):
         if self.mousePressed and self.heldSprite == None:
-            for sprite in self.sprites:
-                if sprite.holdable:
-                    if (sprite.x <= event.x() <= sprite.x + sprite.size and 
-                        sprite.y <= event.y() <= sprite.y + sprite.size):
-                        self.heldSprite = sprite
-                        sprite.held = True
-                        self.heldSpriteOffset = (sprite.x-event.x(), sprite.y-event.y())
-                        break
-                for child in sprite.children:
-                    if child.holdable:
-                        if (child.x <= event.x() <= child.x + child.size and 
-                            child.y <= event.y() <= child.y + child.size):
-                            self.heldSprite = child
-                            child.held = True
-                            self.heldSpriteOffset = (child.x-event.x(), child.y-event.y())
+            for layer in self.sprites:
+                for sprite in layer:
+                    if sprite.holdable:
+                        if (sprite.x <= event.x() <= sprite.x + sprite.size and 
+                            sprite.y <= event.y() <= sprite.y + sprite.size):
+                            self.heldSprite = sprite
+                            sprite.held = True
+                            self.heldSpriteOffset = (sprite.x-event.x(), sprite.y-event.y())
                             break
+                    for child in sprite.children:
+                        if child.holdable:
+                            if (child.x <= event.x() <= child.x + child.size and 
+                                child.y <= event.y() <= child.y + child.size):
+                                self.heldSprite = child
+                                child.held = True
+                                self.heldSpriteOffset = (child.x-event.x(), child.y-event.y())
+                                break
         elif self.mousePressed:
             oldPos = self.heldSprite.position
             self.heldSprite.move((event.x()+self.heldSpriteOffset[0], event.y()+self.heldSpriteOffset[1]))
@@ -188,29 +201,76 @@ class Window(QMainWindow):
         if self.heldSprite != None:
             self.heldSprite.held = False
         self.heldSprite = None
-        for sprite in self.sprites:
-            if (sprite.x <= event.x() <= sprite.x + sprite.size and 
-                sprite.y <= event.y() <= sprite.y + sprite.size):
-                sprite.onClick()
-                break
-            for child in sprite.children:
-                if (child.x <= event.x() <= child.x + child.size and 
-                    child.y <= event.y() <= child.y + child.size):
-                    child.onClick()
+        for layer in self.sprites:
+            for sprite in layer:
+                if (sprite.x <= event.x() <= sprite.x + sprite.size and 
+                    sprite.y <= event.y() <= sprite.y + sprite.size):
+                    sprite.onClick()
                     break
+                for child in sprite.children:
+                    if (child.x <= event.x() <= child.x + child.size and 
+                        child.y <= event.y() <= child.y + child.size):
+                        child.onClick()
+                        break
+
+class WateringCan(supportClasses.Sprite):
+    def __init__(self, window, pos):
+        super().__init__(window, pos, image='sprites/wateringCanIdle.png', size=64, holdable=True)
+        self.yVelocity = 0
+    
+    def onHold(self, oldPos, newPos):
+        self.yVelocity = 0
+        self.setImage('sprites/wateringCanActive.png')
+        for i in range(max(1, 60//self.updatesPerSecond)):
+            self.children.append(Water(window=self.window, pos=(self.x, self.y+self.size)))
+        
+        for layer in self.window.sprites:
+            for sprite in layer:
+                if isinstance(sprite, Flower):
+                    if self.x-50 <= sprite.x <= self.x+50:
+                        sprite.water = 100
+    
+    def update(self):
+        if not self.held:
+            self.setImage('sprites/wateringCanIdle.png')
+        
+            self.move((self.x, self.y+self.yVelocity/self.updatesPerSecond))
+            if self.y > self.window.screenBottom-self.size:
+                self.move((self.x, self.window.screenBottom-self.size))
+                self.yVelocity *= -0.6
+            self.yVelocity += 500/self.updatesPerSecond
+
+class Water(supportClasses.Sprite):
+    def __init__(self, window, pos):
+        super().__init__(window, pos, shape=supportClasses.Shape('ellipse', 3, 3, (0, 0, 255), (0, 0, 200)))
+
+        initMaxSpeed = 100
+        self.velocity = ((random.random()-0.5)*(initMaxSpeed*2), -random.random()*initMaxSpeed)
+    
+    def update(self):
+        self.velocity = (self.velocity[0], self.velocity[1]+500/self.updatesPerSecond)
+        self.realPos = (self.realPos[0]+(self.velocity[0]/self.updatesPerSecond), self.realPos[1]+(self.velocity[1]/self.updatesPerSecond))
+        if self.x < 0 or self.x > win32api.GetSystemMetrics(0):
+            self.velocity = (-self.velocity[0], self.velocity[1])
+    
+    @property
+    def dead(self):
+        return self.y > self.window.screenBottom
 
 class SeedBag(supportClasses.Sprite):
     def __init__(self, window, pos, seedCount=None, secondsSinceRefill=None):
-        super().__init__(window=window, pos=pos, image='sprites/seedBag.png', holdable=True, size=64)
+        super().__init__(window=window, pos=pos, image='sprites/seedBag.png', size=64, holdable=True)
         self.lastPlantedSeed = 100
         self.seedCount = 5 if seedCount is None else seedCount
         self.secondsSinceRefill = 0 if secondsSinceRefill is None else secondsSinceRefill
+        self.yVelocity = 0
     
     def onHold(self, oldPos, newPos):
+        self.yVelocity = 0
         if abs(oldPos[1]-newPos[1]) > 2 and self.lastPlantedSeed > 0.3 and self.seedCount != 0:
             self.lastPlantedSeed = 0
             self.seedCount -= 1
-            self.window.sprites.append(Seed(window=self.window, pos=self.position))
+            self.window.sprites[8].append(Seed(window=self.window, pos=self.position))
 
     def update(self):
         self.lastPlantedSeed += 1/self.updatesPerSecond
@@ -223,6 +283,13 @@ class SeedBag(supportClasses.Sprite):
         
         if self.seedCount == 0:
             self.setImage('sprites/seedBagEmpty.png')
+        
+        if not self.held:
+            self.move((self.x, self.y+self.yVelocity/self.updatesPerSecond))
+            if self.y > self.window.screenBottom-self.size:
+                self.move((self.x, self.window.screenBottom-self.size))
+                self.yVelocity *= -0.6
+            self.yVelocity += 500/self.updatesPerSecond
             
 
 class Seed(supportClasses.Sprite):
@@ -240,15 +307,13 @@ class Seed(supportClasses.Sprite):
 
     @property
     def dead(self):
-        taskbar_handle = win32gui.FindWindow("Shell_TrayWnd", None)
-        rect = win32gui.GetWindowRect(taskbar_handle)
-        return self.y > rect[1]
+        return self.y > self.window.screenBottom
 
 class Flower(supportClasses.Sprite):
-    def __init__(self, window, pos, spriteid=None, timeBorn=None, growthMultiplier=None, nodes=None, stage=None, nodeLength=None, angles=None, lengths=None, stalkThickness=None, points=None, leafAngles=None, petalSize=None, petalWidth=None, numPetals=None, petalOffset=None, colour=None, centreColour=None):
+    def __init__(self, window, pos, spriteid=None, water=None, growthMultiplier=None, nodes=None, stage=None, nodeLength=None, angles=None, lengths=None, stalkThickness=None, points=None, leafAngles=None, petalSize=None, petalWidth=None, numPetals=None, petalOffset=None, colour=None, petalOutline=None, centreColour=None):
         super().__init__(window=window, pos=pos, spriteid=spriteid)
 
-        self.timeBorn = time.time() if timeBorn is None else timeBorn
+        self.water = 100 if water is None else water
         self.growthMultiplier = (random.random()+1)*0.0007 if growthMultiplier is None else growthMultiplier
 
         self.nodes = random.randint(1, 3) if nodes is None else nodes
@@ -282,10 +347,12 @@ class Flower(supportClasses.Sprite):
         self.numPetals = random.randint(3, 20) if numPetals is None else numPetals
         self.petalOffset = random.randint(0, 30) if petalOffset is None else petalOffset
         self.colour = (random.randint(64, 255), random.randint(0, 255), random.randint(64, 255)) if colour is None else colour
+        self.petalOutline = (max(min(self.colour[0]+random.randint(-35, 35), 255), 0), max(min(self.colour[1]+random.randint(-35, 35), 255), 0), max(min(self.colour[2]+random.randint(-35, 35), 255), 0)) if petalOutline is None else petalOutline
 
         self.centreColour = (random.randint(64, 255), random.randint(0, 255), random.randint(64, 255)) if centreColour is None else centreColour
 
     def update(self):
+        self.water -= 1/(self.updatesPerSecond*6048)
         if self.stage != self.nodes+1:
             self.nodeLength += self.growthMultiplier/self.updatesPerSecond
             if self.nodeLength >= self.lengths[self.stage-1]:
@@ -293,12 +360,14 @@ class Flower(supportClasses.Sprite):
                 self.nodeLength = 0
     
     def catchup(self, timeSinceSave, skip=5):
-        for i in range(round(timeSinceSave)):
-            if self.stage != self.nodes+1:
-                self.nodeLength += self.growthMultiplier/(1/skip)
-                if self.nodeLength >= self.lengths[self.stage-1]:
-                    self.stage += 1
-                    self.nodeLength = 0
+        for i in range(round(timeSinceSave/skip)):
+            if not self.dead:
+                self.water -= 1/((1/skip)*6048)
+                if self.stage != self.nodes+1:
+                    self.nodeLength += self.growthMultiplier/(1/skip)
+                    if self.nodeLength >= self.lengths[self.stage-1]:
+                        self.stage += 1
+                        self.nodeLength = 0
             else:
                 break
     
@@ -324,7 +393,7 @@ class Flower(supportClasses.Sprite):
                         painter.restore()
                 else:
                     for j in range(self.numPetals):
-                        pen = QPen(QColor(*self.colour))
+                        pen = QPen(QColor(*self.petalOutline))
                         pen.setWidth(3)
                         brush = QBrush(QColor(*self.colour))
                         painter.setPen(pen)
@@ -345,12 +414,8 @@ class Flower(supportClasses.Sprite):
                     painter.drawEllipse(self.points[-1][0]-self.petalSize//4, self.points[-1][1]-self.petalSize//4, self.petalSize//2, self.petalSize//2)
 
     @property
-    def age(self):
-        return time.time() - self.timeBorn
-
-    @property
     def dead(self):
-        return self.age > 7*24*60*60
+        return self.water <= 0
 
 def main():
     app = QApplication(sys.argv)
