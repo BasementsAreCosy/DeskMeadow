@@ -48,6 +48,9 @@ class Sprite:
     
     def move(self, pos):
         self.realPos = pos
+    
+    def setImage(self, newImage):
+        self.image = utils.scaleImage(newImage, self.size)
 
     @property
     def dead(self):

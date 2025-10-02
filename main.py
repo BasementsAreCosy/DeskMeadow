@@ -27,12 +27,6 @@ class Window(QMainWindow):
         self.sprites = []
         self.load()
 
-        ## V Meadow Specific V ##
-
-        self.sprites.append(SeedBag(window=self, pos=(500, 500)))
-
-        ## ^ Meadow Specific ^ ##
-
         self.mousePressed = False
         self.heldSprite = None
         self.heldSpriteOffset = (0, 0)
@@ -94,8 +88,11 @@ class Window(QMainWindow):
                     'leafAngles': sprite.leafAngles,
                     'growthMultiplier': sprite.growthMultiplier
                 })
+            elif isinstance(sprite, SeedBag):
+                seedBag = sprite
         flowerDict.append({
-            'timeAtLastSave': time.time()
+            'timeAtLastSave': time.time(),
+            'seedCount': seedBag.seedCount
         })
 
         with open(os.path.join(self.getDataPath(), 'flowerData.json'), 'w') as f:
@@ -112,8 +109,10 @@ class Window(QMainWindow):
                 json.dump([], f)
                 flowerData = []
         
+        metaData = None
         if len(flowerData) != 0:
-            timeSinceSave = time.time()-flowerData.pop()['timeAtLastSave']
+            metaData = flowerData.pop()
+            timeSinceSave = time.time()-metaData['timeAtLastSave']
         else:
             timeSinceSave = 0
         
@@ -121,6 +120,11 @@ class Window(QMainWindow):
             flower['window'] = self
             self.sprites.append(Flower(**flower))
             self.sprites[-1].catchup(timeSinceSave)
+        
+        if metaData is None:
+            self.sprites.append(SeedBag(window=self, pos=(500, 500)))
+        else:
+            self.sprites.append(SeedBag(window=self, pos=(500, 500), seedCount=metaData['seedCount']+timeSinceSave//17280, secondsSinceRefill=timeSinceSave%17280))
     
     def updateScr(self):
         self.frame += 1
@@ -196,17 +200,30 @@ class Window(QMainWindow):
                     break
 
 class SeedBag(supportClasses.Sprite):
-    def __init__(self, window, pos):
-        super().__init__(window=window, pos=pos, image='sprites/seeds.png', holdable=True, size=64)
-        self.secondsSinceLastSeed = 100
+    def __init__(self, window, pos, seedCount=None, secondsSinceRefill=None):
+        super().__init__(window=window, pos=pos, image='sprites/seedBag.png', holdable=True, size=64)
+        self.lastPlantedSeed = 100
+        self.seedCount = 5 if seedCount is None else seedCount
+        self.secondsSinceRefill = 0 if secondsSinceRefill is None else secondsSinceRefill
     
     def onHold(self, oldPos, newPos):
-        if abs(oldPos[1]-newPos[1]) > 2 and self.secondsSinceLastSeed > 0:
-            self.secondsSinceLastSeed = 0
+        if abs(oldPos[1]-newPos[1]) > 2 and self.lastPlantedSeed > 0.3 and self.seedCount != 0:
+            self.lastPlantedSeed = 0
+            self.seedCount -= 1
             self.window.sprites.append(Seed(window=self.window, pos=self.position))
 
     def update(self):
-        self.secondsSinceLastSeed += 1/self.updatesPerSecond
+        self.lastPlantedSeed += 1/self.updatesPerSecond
+        
+        self.secondsSinceRefill += 1/self.updatesPerSecond
+        if self.secondsSinceRefill >= 17280:
+            self.setImage('sprites/seedBag.png')
+            self.seedCount += 1
+            self.secondsSinceRefill = 0
+        
+        if self.seedCount == 0:
+            self.setImage('sprites/seedBagEmpty.png')
+            
 
 class Seed(supportClasses.Sprite):
     def __init__(self, window, pos):
