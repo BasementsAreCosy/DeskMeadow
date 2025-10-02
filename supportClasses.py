@@ -1,11 +1,13 @@
 import utils
-from PyQt5.QtCore import QPoint
-import win32api
-import random
+import uuid
+from PyQt5.QtGui import QPen, QBrush, QColor
 
 class Sprite:
-    def __init__(self, window=None, pos=None, image=None, shape=None, size=32, holdable=False, updatesPerSecond=60):
+    def __init__(self, window=None, pos=None, spriteid=None, image=None, shape=None, size=32, holdable=False, updatesPerSecond=60):
         self.window = window
+        if spriteid is None:
+            spriteid = uuid.uuid4()
+        self.id = str(spriteid)
         self.held = False
         self.holdable = holdable
         self.updatesPerSecond = updatesPerSecond
@@ -33,6 +35,12 @@ class Sprite:
         if self.image != None:
             painter.drawPixmap(self.x, self.y, self.image)
         elif self.shape != None:
+            pen = QPen(QColor(*self.shape.outlineColour))
+            pen.setWidth(3)
+            brush = QBrush(QColor(*self.shape.colour))
+            painter.setPen(pen)
+            painter.setBrush(brush)
+
             if self.shape.name == 'ellipse':
                 painter.drawEllipse(self.x, self.y, self.shape.width, self.shape.height)
             elif self.shape.name == 'rectangle':
@@ -66,7 +74,9 @@ class Sprite:
         return (round(self.realPos[0]), round(self.realPos[1]))
     
 class Shape:
-    def __init__(self, name, width, height):
+    def __init__(self, name, width, height, colour, outlineColour):
         self.name = name
         self.width = width
         self.height = height
+        self.colour = colour
+        self.outlineColour = outlineColour
