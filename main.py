@@ -1,4 +1,5 @@
 ##### My Libs #####
+import utils
 import supportClasses
 
 ##### Window Libs #####
@@ -214,12 +215,12 @@ class Window(QMainWindow):
 
 class WateringCan(supportClasses.Sprite):
     def __init__(self, window, pos):
-        super().__init__(window, pos, image='sprites/wateringCanIdle.png', size=64, holdable=True)
+        super().__init__(window, pos, image=utils.resourcePath('sprites/wateringCanIdle.png'), size=64, holdable=True)
         self.yVelocity = 0
     
     def onHold(self, oldPos, newPos):
         self.yVelocity = 0
-        self.setImage('sprites/wateringCanActive.png')
+        self.setImage(utils.resourcePath('sprites/wateringCanActive.png'))
         for i in range(max(1, 60//self.updatesPerSecond)):
             self.children.append(Water(window=self.window, pos=(self.x, self.y+self.size)))
         
@@ -231,7 +232,7 @@ class WateringCan(supportClasses.Sprite):
     
     def update(self):
         if not self.held:
-            self.setImage('sprites/wateringCanIdle.png')
+            self.setImage(utils.resourcePath('sprites/wateringCanIdle.png'))
         
             self.move((self.x, self.y+self.yVelocity/self.updatesPerSecond))
             if self.y > self.window.screenBottom-self.size:
@@ -258,7 +259,7 @@ class Water(supportClasses.Sprite):
 
 class SeedBag(supportClasses.Sprite):
     def __init__(self, window, pos, seedCount=None, secondsSinceRefill=None):
-        super().__init__(window=window, pos=pos, image='sprites/seedBag.png', size=64, holdable=True)
+        super().__init__(window=window, pos=pos, image=utils.resourcePath('sprites/seedBag.png'), size=64, holdable=True)
         self.lastPlantedSeed = 100
         self.seedCount = 5 if seedCount is None else seedCount
         self.secondsSinceRefill = 0 if secondsSinceRefill is None else secondsSinceRefill
@@ -276,12 +277,12 @@ class SeedBag(supportClasses.Sprite):
         
         self.secondsSinceRefill += 1/self.updatesPerSecond
         if self.secondsSinceRefill >= 17280:
-            self.setImage('sprites/seedBag.png')
+            self.setImage(utils.resourcePath('sprites/seedBag.png'))
             self.seedCount += 1
             self.secondsSinceRefill = 0
         
         if self.seedCount == 0:
-            self.setImage('sprites/seedBagEmpty.png')
+            self.setImage(utils.resourcePath('sprites/seedBagEmpty.png'))
         
         if not self.held:
             self.move((self.x, self.y+self.yVelocity/self.updatesPerSecond))

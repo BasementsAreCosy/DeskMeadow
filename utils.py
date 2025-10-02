@@ -1,4 +1,11 @@
 from PyQt5.QtGui import QPixmap
+import os
+import sys
+
+def resourcePath(relativePath):
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, relativePath)
+    return os.path.join(os.path.abspath("."), relativePath)
 
 def roundToNearestBase(num, base):
     return round(num/base)*base
