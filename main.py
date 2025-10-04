@@ -71,6 +71,28 @@ class Window(QMainWindow):
         return os.path.join(os.environ['APPDATA'], 'DeskMeadow')
 
     def save(self):
+        flowerData = None
+        try:
+            with open(os.path.join(self.getDataPath(), 'flowerData.json'), 'r') as f:
+                flowerData = list(json.load(f))
+        except FileNotFoundError:
+            pass
+
+        if not (flowerData is None):
+            metaData = None
+            if len(flowerData) != 0:
+                metaData = flowerData.pop()
+                timeSinceSave = time.time()-metaData['timeAtLastSave']
+            else:
+                timeSinceSave = 0
+        
+        if timeSinceSave > 20:
+            for layer in self.sprites:
+                for sprite in layer:
+                    if isinstance(sprite, Flower):
+                        self.sprites[8][-1].catchup(timeSinceSave)
+
+
         flowerDict = []
         for layer in self.sprites:
             for sprite in layer:
