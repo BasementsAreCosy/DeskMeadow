@@ -191,8 +191,7 @@ class Window(QMainWindow):
                 sprite.draw(painter)
     
     def mousePressEvent(self, event):
-        self.mousePressed = 'test'
-        self.mousePressed += 3
+        self.mousePressed = True
     
     def mouseMoveEvent(self, event):
         if self.mousePressed and self.heldSprite == None:
