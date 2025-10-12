@@ -7,6 +7,9 @@ def resourcePath(relativePath):
         return os.path.join(sys._MEIPASS, relativePath)
     return os.path.join(os.path.abspath("."), relativePath)
 
+def getDataPath():
+    return os.path.join(os.environ['APPDATA'], 'DeskMeadow')
+
 def roundToNearestBase(num, base):
     return round(num/base)*base
 

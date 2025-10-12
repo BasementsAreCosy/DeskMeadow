@@ -66,14 +66,11 @@ class Window(QMainWindow):
         # Set window size to be full screen
         self.setGeometry(0, 0, win32api.GetSystemMetrics(0), win32api.GetSystemMetrics(1))
         self.show()
-    
-    def getDataPath(self):
-        return os.path.join(os.environ['APPDATA'], 'DeskMeadow')
 
     def save(self):
         flowerData = None
         try:
-            with open(os.path.join(self.getDataPath(), 'flowerData.json'), 'r') as f:
+            with open(os.path.join(utils.getDataPath(), 'flowerData.json'), 'r') as f:
                 flowerData = list(json.load(f))
         except FileNotFoundError:
             pass
@@ -85,12 +82,15 @@ class Window(QMainWindow):
                 timeSinceSave = time.time()-metaData['timeAtLastSave']
             else:
                 timeSinceSave = 0
-        
+
+
         if timeSinceSave > 20:
             for layer in self.sprites:
                 for sprite in layer:
                     if isinstance(sprite, Flower):
-                        self.sprites[8][-1].catchup(timeSinceSave)
+                        sprite.catchup(timeSinceSave)
+                    elif isinstance(sprite, SeedBag):
+                        sprite.seedCount += timeSinceSave//17280
 
 
         flowerDict = []
@@ -125,17 +125,17 @@ class Window(QMainWindow):
             'seedCount': seedBag.seedCount
         })
 
-        with open(os.path.join(self.getDataPath(), 'flowerData.json'), 'w') as f:
+        with open(os.path.join(utils.getDataPath(), 'flowerData.json'), 'w') as f:
             jsonObj = json.dumps(flowerDict, indent=4)
             f.write(jsonObj)
     
     def load(self):
         try:
-            with open(os.path.join(self.getDataPath(), 'flowerData.json'), 'r') as f:
+            with open(os.path.join(utils.getDataPath(), 'flowerData.json'), 'r') as f:
                 flowerData = list(json.load(f))
         except FileNotFoundError:
-            os.makedirs(self.getDataPath(), exist_ok=True)
-            with open(os.path.join(self.getDataPath(), 'flowerData.json'), 'w') as f:
+            os.makedirs(utils.getDataPath(), exist_ok=True)
+            with open(os.path.join(utils.getDataPath(), 'flowerData.json'), 'w') as f:
                 json.dump([], f)
                 flowerData = []
         
@@ -191,7 +191,8 @@ class Window(QMainWindow):
                 sprite.draw(painter)
     
     def mousePressEvent(self, event):
-        self.mousePressed = True
+        self.mousePressed = 'test'
+        self.mousePressed += 3
     
     def mouseMoveEvent(self, event):
         if self.mousePressed and self.heldSprite == None:
